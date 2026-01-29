@@ -3,80 +3,66 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>DMテスト</title>
+  <title>IG DM UXテスト</title>
   <style>
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans JP",sans-serif;max-width:720px;margin:24px auto;padding:0 16px}
-    .card{border:1px solid #eee;border-radius:14px;padding:16px;margin:12px 0}
-    button{padding:12px 16px;border-radius:12px;border:0;background:#111;color:#fff;font-weight:700;cursor:pointer}
-    input{width:100%;padding:10px;border-radius:10px;border:1px solid #ddd}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans JP",sans-serif;margin:24px;line-height:1.6}
+    .card{max-width:720px;margin:0 auto;padding:18px 18px;border:1px solid #eee;border-radius:14px}
+    h1{font-size:20px;margin:0 0 10px}
     .muted{color:#666;font-size:13px}
-    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    button,a.btn{
+      display:inline-block; padding:12px 14px; border-radius:12px;
+      border:1px solid #ddd; background:#fff; cursor:pointer; text-decoration:none; color:#111;
+      font-weight:600;
+    }
+    .row{display:flex; gap:10px; flex-wrap:wrap; margin-top:12px}
+    code{background:#f6f6f6;padding:2px 6px;border-radius:8px}
   </style>
 </head>
 <body>
-  <h1>Instagram DM誘導テスト</h1>
-
   <div class="card">
-    <div class="muted">設定</div>
-    <div class="row">
-      <div style="flex:1">
-        <div class="muted">sessionId</div>
-        <input id="sessionId" placeholder="例: s_123..." />
-      </div>
+    <h1>Instagram DM UXテスト（GASなし）</h1>
+    <div class="muted">
+      目的：ボタン1回で「特定アカウントのDM画面」が開き、送信欄にKeyが入るUXを確認する。<br>
+      ※端末/アプリ状態により下書きが入らないケースがあります。
     </div>
-    <p class="muted">※ sessionIdはテスト用。実運用はあなたの結果ページから渡す</p>
+
+    <p>
+      固定Key：<code id="keyText"></code><br>
+      送信文（先頭にKey）：<code id="msgText"></code>
+    </p>
+
+    <div class="row">
+      <a class="btn" id="openIgMe" href="#" rel="noopener">InstagramでDMを開く（推奨）</a>
+      <a class="btn" id="openWeb" href="#" rel="noopener">Web版で試す（保険）</a>
+    </div>
+
+    <p class="muted" style="margin-top:14px">
+      うまくいかない時：<br>
+      1) Instagramアプリにログイン済みか確認<br>
+      2) もう一回タップ（たまに1回目で遷移がコケる）<br>
+      3) 「Web版で試す」を使う（ただし宛先選択画面が出やすい）
+    </p>
   </div>
 
-  <div class="card">
-    <button id="btn">Keyを発行してInstagram DMを開く</button>
-    <p id="status" class="muted"></p>
-  </div>
+<script>
+  // ===== ここだけ編集すればOK =====
+  const IG_USERNAME = "YOUR_INSTAGRAM_USERNAME"; // 例: "yumephoto_official"
+  const KEY = "apple"; // a/b/c で始まる英単語（例：apple / brave / cloud）
+  // ==============================
 
-  <script>
-    // === あなたが変えるところ ===
-    const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbz0nSbcIZKV6P3d8NPu1mZKRjVLT2EF6grR5nfc2otxiky6jdaRBiFhskvjoemWUlOn/exec"; // 例: https://script.google.com/macros/s/....../exec
-    const IG_USERNAME  = "otona.shindan.321"; // 例: yumephoto など（@は不要）
+  const message = `${KEY} 診断Keyです`;
 
-    async function postJSON(payload){
-      const res = await fetch(GAS_ENDPOINT, {
-        method: "POST",
-        headers: { "Content-Type":"application/json" },
-        body: JSON.stringify(payload)
-      });
-      return res.json();
-    }
+  document.getElementById("keyText").textContent = KEY;
+  document.getElementById("msgText").textContent = message;
 
-    function buildDmText(key){
-      // ★重要：先頭がa/b/cで始まる。囲わない。余計な文字を先頭に置かない。
-      return key;
-    }
+  // ig.me で特定アカウントのDMへ（ここが一番“宛先選択”を避けやすい）
+  const igMeUrl = `https://ig.me/m/${encodeURIComponent(IG_USERNAME)}?text=${encodeURIComponent(message)}`;
 
-    function openDmToUser(username, text){
-      // ★重要：相手を確定させたいので ig.me を優先
-      const url = `https://ig.me/m/${encodeURIComponent(username)}?text=${encodeURIComponent(text)}`;
-      location.href = url;
-    }
+  // Webフォールバック（環境によっては宛先選択が出やすい）
+  const webUrl = `https://www.instagram.com/${encodeURIComponent(IG_USERNAME)}/`;
 
-    document.getElementById("btn").addEventListener("click", async ()=>{
-      const status = document.getElementById("status");
-      status.textContent = "Key発行中…";
-      const sessionId = document.getElementById("sessionId").value.trim();
-      if(!sessionId){ status.textContent = "sessionIdを入れてね"; return; }
-
-      try{
-        const data = await postJSON({ action:"issueKey", sessionId });
-        if(!data.ok){ status.textContent = "GASエラー: " + (data.error || "unknown"); return; }
-
-        const key = String(data.key || "").trim();
-        if(!key){ status.textContent = "keyが空…"; return; }
-
-        const dmText = buildDmText(key);
-        status.textContent = "DMを開くよ（送信はユーザーが押す）";
-        openDmToUser(IG_USERNAME, dmText);
-      }catch(e){
-        status.textContent = "通信失敗: " + e;
-      }
-    });
-  </script>
+  document.getElementById("openIgMe").href = igMeUrl;
+  document.getElementById("openWeb").href = webUrl;
+</script>
 </body>
 </html>
