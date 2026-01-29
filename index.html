@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>DMテスト</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans JP",sans-serif;max-width:720px;margin:24px auto;padding:0 16px}
+    .card{border:1px solid #eee;border-radius:14px;padding:16px;margin:12px 0}
+    button{padding:12px 16px;border-radius:12px;border:0;background:#111;color:#fff;font-weight:700;cursor:pointer}
+    input{width:100%;padding:10px;border-radius:10px;border:1px solid #ddd}
+    .muted{color:#666;font-size:13px}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  </style>
+</head>
+<body>
+  <h1>Instagram DM誘導テスト</h1>
+
+  <div class="card">
+    <div class="muted">設定</div>
+    <div class="row">
+      <div style="flex:1">
+        <div class="muted">sessionId</div>
+        <input id="sessionId" placeholder="例: s_123..." />
+      </div>
+    </div>
+    <p class="muted">※ sessionIdはテスト用。実運用はあなたの結果ページから渡す</p>
+  </div>
+
+  <div class="card">
+    <button id="btn">Keyを発行してInstagram DMを開く</button>
+    <p id="status" class="muted"></p>
+  </div>
+
+  <script>
+    // === あなたが変えるところ ===
+    const GAS_ENDPOINT = "あなたのGASのWebApp URL"; // 例: https://script.google.com/macros/s/....../exec
+    const IG_USERNAME  = "送らせたい宛先のユーザー名"; // 例: yumephoto など（@は不要）
+
+    async function postJSON(payload){
+      const res = await fetch(GAS_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type":"application/json" },
+        body: JSON.stringify(payload)
+      });
+      return res.json();
+    }
+
+    function buildDmText(key){
+      // ★重要：先頭がa/b/cで始まる。囲わない。余計な文字を先頭に置かない。
+      return key;
+    }
+
+    function openDmToUser(username, text){
+      // ★重要：相手を確定させたいので ig.me を優先
+      const url = `https://ig.me/m/${encodeURIComponent(username)}?text=${encodeURIComponent(text)}`;
+      location.href = url;
+    }
+
+    document.getElementById("btn").addEventListener("click", async ()=>{
+      const status = document.getElementById("status");
+      status.textContent = "Key発行中…";
+      const sessionId = document.getElementById("sessionId").value.trim();
+      if(!sessionId){ status.textContent = "sessionIdを入れてね"; return; }
+
+      try{
+        const data = await postJSON({ action:"issueKey", sessionId });
+        if(!data.ok){ status.textContent = "GASエラー: " + (data.error || "unknown"); return; }
+
+        const key = String(data.key || "").trim();
+        if(!key){ status.textContent = "keyが空…"; return; }
+
+        const dmText = buildDmText(key);
+        status.textContent = "DMを開くよ（送信はユーザーが押す）";
+        openDmToUser(IG_USERNAME, dmText);
+      }catch(e){
+        status.textContent = "通信失敗: " + e;
+      }
+    });
+  </script>
+</body>
+</html>
